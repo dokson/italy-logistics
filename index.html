@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Italy Isochrone: Local Reachability Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+  <aside>
+    <div class="brand">
+      <div class="brand-mark">
+        <div class="brand-glyph">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.6"/>
+            <circle cx="12" cy="12" r="6.5" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.6"/>
+            <circle cx="12" cy="12" r="2.4" fill="#fff"/>
+          </svg>
+        </div>
+        <div>
+          <h1 data-i18n="title">Italy <em>Isochrone</em></h1>
+          <div class="kicker" data-i18n="kicker">Local reachability map</div>
+        </div>
+      </div>
+      <div class="lang-toggle">
+        <button data-lang="en" class="active">EN</button>
+        <button data-lang="it">IT</button>
+      </div>
+    </div>
+
+    <div class="sub" data-i18n="subtitle">Local reachability map for 111 Italian provincial capitals, computed with the Google Isochrones API: drive, walk &amp; bike.</div>
+    <!-- static fallback text above matches the "en" dict entry below; JS applies the same string via textContent on load -->
+
+    <div class="group">
+      <label data-i18n="cityLabel">City</label>
+      <input type="text" id="citySearch" list="cityOptions" autocomplete="off" data-i18n-placeholder="citySearchPlaceholder" placeholder="Search 111 cities…" />
+      <datalist id="cityOptions"></datalist>
+    </div>
+
+    <div class="group">
+      <label data-i18n="modeLabel">Mode</label>
+      <div class="modes">
+        <button data-mode="DRIVE" class="active"><span class="ic">🚗</span><span data-i18n="modeDrive">Drive</span></button>
+        <button data-mode="WALK"><span class="ic">🚶</span><span data-i18n="modeWalk">Walk</span></button>
+        <button data-mode="BICYCLE"><span class="ic">🚴</span><span data-i18n="modeBike">Bike</span></button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label data-i18n="travelTimeLabel">Travel time</label>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="group">
+      <div class="info">
+        <b data-i18n="infoHowLabel">How it works:</b>
+        <span data-i18n="infoHowText">pick a city and a mode; the colored bands show how far you can get in that time from the center. Polygons are precomputed offline, so the published site never calls the API.</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      <a id="footerData" class="footer-link" data-i18n="footerData" href="https://developers.google.com/maps/documentation/isochrones" target="_blank" rel="noopener"><span class="dot">◈</span> Data: Google Isochrones API</a><br/>
+      <span data-i18n="footerScope">PoC: local reachability, not intercity</span>
+    </div>
+
+    <button type="button" class="about-trigger" id="aboutTrigger">
+      <span class="about-trigger-ic">ⓘ</span>
+      <span data-i18n="aboutTrigger">About this data</span>
+    </button>
+
+    <a class="made-by" href="https://coalesce.coach" target="_blank" rel="noopener">
+      <span data-i18n="madeBy">Made by</span>
+      <img src="https://coalesce.coach/favicon.svg" width="16" height="16" alt="" loading="lazy" />
+      <span class="made-by-word">COalesCE</span>
+    </a>
+  </aside>
+
+  <div style="position:relative;height:100%">
+    <div class="overlay-title">
+      <b id="ovrTitle" data-i18n="selectCity">Select a city</b>
+      <span id="ovrSub" data-i18n="isochronesFrom">Isochrones from selected origin</span>
+      <div class="overlay-coords" id="ovrCoords"></div>
+    </div>
+    <div class="banner" id="banner" data-i18n="bannerMissing">Isochrone data not found for this city. Run the generation/simplification scripts first.</div>
+    <div id="map"></div>
+  </div>
+</div>
+
+<dialog id="aboutDialog">
+  <button type="button" class="about-close" id="aboutClose" aria-label="Close">✕</button>
+  <h2 data-i18n="aboutTitle">About this data</h2>
+
+  <h3 data-i18n="aboutWhatTitle">What's an isochrone?</h3>
+  <p data-i18n="aboutWhatText">An isochrone ("equal time") is a polygon covering everywhere reachable within a fixed time from a point, shaped by real streets, one-ways and turns, not a compass-drawn circle. A 15-minute drive rarely looks round.</p>
+
+  <h3 data-i18n="aboutMethodTitle">How it's built</h3>
+  <ul id="aboutMethodList"></ul>
+
+  <a class="about-docs" id="aboutDocsLink" href="https://developers.google.com/maps/documentation/isochrones" target="_blank" rel="noopener" data-i18n="aboutDocsLink">Google Isochrones API: official documentation ↗</a>
+</dialog>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js" defer></script>
+</body>
+</html>
