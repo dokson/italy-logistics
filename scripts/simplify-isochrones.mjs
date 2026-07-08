@@ -130,6 +130,24 @@ function countVertices(geometry) {
   return rings.reduce((sum, r) => sum + r.length, 0);
 }
 
+// Pure local file I/O + CPU work per file, no shared external rate limit
+// (unlike generate-isochrones.mjs's API calls) — safe to run concurrently.
+async function simplifyFile(rawDir, outDir, file) {
+  const collection = JSON.parse(await readFile(path.join(rawDir, file), "utf8"));
+
+  let before = 0;
+  let after = 0;
+  for (const feature of collection.features) {
+    before += countVertices(feature.geometry);
+    feature.geometry = simplifyGeometry(feature.geometry, TOLERANCE_DEG);
+    after += countVertices(feature.geometry);
+  }
+
+  const json = JSON.stringify(collection);
+  await writeFile(path.join(outDir, file), json);
+  return { before, after, bytes: Buffer.byteLength(json) };
+}
+
 async function main() {
   const rawDir = path.join(__dirname, "..", "data", "isochrones-raw");
   const outDir = path.join(__dirname, "..", "data", "isochrones");
@@ -137,23 +155,11 @@ async function main() {
 
   const files = (await readdir(rawDir)).filter((f) => f.endsWith(".geojson"));
 
-  let totalBefore = 0;
-  let totalAfter = 0;
-  let totalBytes = 0;
+  const results = await Promise.all(files.map((file) => simplifyFile(rawDir, outDir, file)));
 
-  for (const file of files) {
-    const collection = JSON.parse(await readFile(path.join(rawDir, file), "utf8"));
-
-    for (const feature of collection.features) {
-      totalBefore += countVertices(feature.geometry);
-      feature.geometry = simplifyGeometry(feature.geometry, TOLERANCE_DEG);
-      totalAfter += countVertices(feature.geometry);
-    }
-
-    const json = JSON.stringify(collection);
-    await writeFile(path.join(outDir, file), json);
-    totalBytes += Buffer.byteLength(json);
-  }
+  const totalBefore = results.reduce((sum, r) => sum + r.before, 0);
+  const totalAfter = results.reduce((sum, r) => sum + r.after, 0);
+  const totalBytes = results.reduce((sum, r) => sum + r.bytes, 0);
 
   const reduction = ((1 - totalAfter / totalBefore) * 100).toFixed(1);
   const sizeMB = (totalBytes / (1024 * 1024)).toFixed(2);
@@ -162,4 +168,7 @@ async function main() {
   console.log(`Total output size: ${sizeMB} MB (tolerance=${TOLERANCE_DEG}deg)`);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

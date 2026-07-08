@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="styles.css" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%23e8449e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23g)'/%3E%3Ccircle cx='12' cy='12' r='8.5' fill='none' stroke='%23fff' stroke-opacity='.35' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='12' r='5.2' fill='none' stroke='%23fff' stroke-opacity='.6' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%23fff'/%3E%3C/svg%3E" />
 </head>
 <body>
 <div id="app">
@@ -36,10 +37,10 @@
     <div class="sub" data-i18n="subtitle">Local reachability map for 111 Italian provincial capitals, computed with the Google Isochrones API: drive, walk &amp; bike.</div>
     <!-- static fallback text above matches the "en" dict entry below; JS applies the same string via textContent on load -->
 
-    <div class="group">
+    <div class="group city-combobox">
       <label data-i18n="cityLabel">City</label>
-      <input type="text" id="citySearch" list="cityOptions" autocomplete="off" data-i18n-placeholder="citySearchPlaceholder" placeholder="Search 111 cities…" />
-      <datalist id="cityOptions"></datalist>
+      <input type="text" id="citySearch" autocomplete="off" data-i18n-placeholder="citySearchPlaceholder" placeholder="Search 111 cities…" />
+      <ul id="cityDropdown" class="city-dropdown" hidden></ul>
     </div>
 
     <div class="group">
@@ -69,7 +70,11 @@
     </div>
 
     <button type="button" class="about-trigger" id="aboutTrigger">
-      <span class="about-trigger-ic">ⓘ</span>
+      <svg class="about-trigger-ic" viewBox="0 0 20 20" width="14" height="14" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M10 9v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="10" cy="6.3" r="1.05" fill="currentColor"/>
+      </svg>
       <span data-i18n="aboutTrigger">About this data</span>
     </button>
 

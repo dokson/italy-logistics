@@ -262,10 +262,76 @@ document.querySelectorAll(".modes button").forEach((btn) => {
 });
 
 const citySearch = document.getElementById("citySearch");
-citySearch.addEventListener("change", (e) => {
-  const city = cities.find((c) => c.name === e.target.value);
-  if (city) selectCity(city);
-  else e.target.value = currentCity ? currentCity.name : "";
+const cityDropdown = document.getElementById("cityDropdown");
+let dropdownMatches = [];
+let dropdownActiveIndex = -1;
+const MAX_DROPDOWN_RESULTS = 8;
+
+function normalize(str) {
+  return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+function renderDropdown(query) {
+  const q = normalize(query.trim());
+  dropdownMatches = (q ? cities.filter((c) => normalize(c.name).includes(q)) : cities).slice(0, MAX_DROPDOWN_RESULTS);
+  dropdownActiveIndex = dropdownMatches.length ? 0 : -1;
+
+  cityDropdown.innerHTML = "";
+  dropdownMatches.forEach((city, i) => {
+    const li = document.createElement("li");
+    li.textContent = city.name;
+    li.dataset.index = i;
+    li.className = i === dropdownActiveIndex ? "active" : "";
+    li.addEventListener("mousedown", (e) => {
+      e.preventDefault(); // keep focus/avoid input blur before click registers
+      selectCity(city);
+      closeDropdown();
+    });
+    cityDropdown.appendChild(li);
+  });
+
+  cityDropdown.hidden = dropdownMatches.length === 0;
+}
+
+function closeDropdown() {
+  cityDropdown.hidden = true;
+  dropdownMatches = [];
+  dropdownActiveIndex = -1;
+}
+
+function highlightActive() {
+  [...cityDropdown.children].forEach((li, i) => li.classList.toggle("active", i === dropdownActiveIndex));
+  cityDropdown.children[dropdownActiveIndex]?.scrollIntoView({ block: "nearest" });
+}
+
+citySearch.addEventListener("focus", () => renderDropdown(citySearch.value));
+citySearch.addEventListener("input", () => renderDropdown(citySearch.value));
+
+citySearch.addEventListener("keydown", (e) => {
+  if (cityDropdown.hidden && e.key !== "ArrowDown") return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (cityDropdown.hidden) return renderDropdown(citySearch.value);
+    dropdownActiveIndex = Math.min(dropdownActiveIndex + 1, dropdownMatches.length - 1);
+    highlightActive();
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    dropdownActiveIndex = Math.max(dropdownActiveIndex - 1, 0);
+    highlightActive();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const city = dropdownMatches[dropdownActiveIndex];
+    if (city) selectCity(city);
+    closeDropdown();
+    citySearch.blur();
+  } else if (e.key === "Escape") {
+    closeDropdown();
+    citySearch.blur();
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".city-combobox")) closeDropdown();
 });
 
 async function main() {
@@ -274,12 +340,6 @@ async function main() {
   cities = await fetch("data/cities.json").then((r) => r.json());
   cities.sort((a, b) => a.name.localeCompare(b.name, "it"));
 
-  const datalist = document.getElementById("cityOptions");
-  cities.forEach((city) => {
-    const opt = document.createElement("option");
-    opt.value = city.name;
-    datalist.appendChild(opt);
-  });
   renderMarkers();
 
   const defaultCity = cities.find((c) => c.id === "roma") || cities[0];
