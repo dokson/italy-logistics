@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs scripts/check.mjs before every `git push`.
+#
+# This hook is versioned (unlike .git/hooks/, which git never tracks), but
+# git still requires an explicit local opt-in to actually run hooks from a
+# non-default path — a fresh clone needs to run once:
+#   git config core.hooksPath hooks
+node scripts/check.mjs

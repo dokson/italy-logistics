@@ -4,10 +4,40 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Italy Isochrone: Local Reachability Map</title>
+<!--
+  CSP is enforced via meta tag (GitHub Pages doesn't allow custom response
+  headers, so this is the only mechanism available here). connect-src is
+  'self' plus unpkg.com (Leaflet's own source map fetch, devtools-only) —
+  this site otherwise fetches only its own data/*.json / data/isochrones/*
+  .geojson at runtime: no analytics, no third-party APIs, no Google
+  Isochrones calls (those only happen offline, in
+  scripts/generate-isochrones.mjs, never from the browser).
+-->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'self' https://unpkg.com;
+  style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' data: https://www.coalesce.coach https://*.basemaps.cartocdn.com https://unpkg.com https://www.gstatic.com;
+  connect-src 'self' https://unpkg.com;
+  manifest-src 'self';
+  base-uri 'none';
+  form-action 'none';
+" />
+<!--
+  Note: frame-ancestors, report-uri/report-to and sandbox are only
+  enforceable via the HTTP response header form of CSP, not <meta> (per
+  spec, browsers ignore them here) — GitHub Pages doesn't let us set custom
+  response headers, so clickjacking framing protection isn't available on
+  this host. Low severity for a read-only map with no state-changing
+  actions to trick a user into, but worth knowing if this ever moves host.
+-->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+  crossorigin="anonymous" />
 <link rel="stylesheet" href="styles.css" />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%23e8449e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23g)'/%3E%3Ccircle cx='12' cy='12' r='8.5' fill='none' stroke='%23fff' stroke-opacity='.35' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='12' r='5.2' fill='none' stroke='%23fff' stroke-opacity='.6' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%23fff'/%3E%3C/svg%3E" />
 </head>
@@ -34,12 +64,12 @@
       </div>
     </div>
 
-    <div class="sub" data-i18n="subtitle">Local reachability map for 111 Italian provincial capitals, computed with the Google Isochrones API: drive, walk &amp; bike.</div>
+    <div class="sub" data-i18n="subtitle">Local reachability map for 119 Italian provincial capitals, computed with the Google Isochrones API: drive, walk & bike.</div>
     <!-- static fallback text above matches the "en" dict entry below; JS applies the same string via textContent on load -->
 
     <div class="group city-combobox">
       <label data-i18n="cityLabel">City</label>
-      <input type="text" id="citySearch" autocomplete="off" data-i18n-placeholder="citySearchPlaceholder" placeholder="Search 111 cities…" />
+      <input type="text" id="citySearch" autocomplete="off" data-i18n-placeholder="citySearchPlaceholder" placeholder="Search 119 cities…" />
       <ul id="cityDropdown" class="city-dropdown" hidden></ul>
     </div>
 
@@ -47,14 +77,19 @@
       <label data-i18n="modeLabel">Mode</label>
       <div class="modes">
         <button data-mode="DRIVE" class="active"><span class="ic">🚗</span><span data-i18n="modeDrive">Drive</span></button>
-        <button data-mode="WALK"><span class="ic">🚶</span><span data-i18n="modeWalk">Walk</span></button>
         <button data-mode="BICYCLE"><span class="ic">🚴</span><span data-i18n="modeBike">Bike</span></button>
+        <button data-mode="WALK"><span class="ic">🚶</span><span data-i18n="modeWalk">Walk</span></button>
       </div>
     </div>
 
     <div class="group">
       <label data-i18n="travelTimeLabel">Travel time</label>
       <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="group">
+      <label data-i18n="reachableLabel">Reachable cities</label>
+      <div class="reachable-list" id="reachableList"></div>
     </div>
 
     <div class="group">
@@ -65,7 +100,6 @@
     </div>
 
     <div class="footer">
-      <a id="footerData" class="footer-link" data-i18n="footerData" href="https://developers.google.com/maps/documentation/isochrones" target="_blank" rel="noopener"><span class="dot">◈</span> Data: Google Isochrones API</a><br/>
       <span data-i18n="footerScope">PoC: local reachability, not intercity</span>
     </div>
 
@@ -78,11 +112,29 @@
       <span data-i18n="aboutTrigger">About this data</span>
     </button>
 
-    <a class="made-by" href="https://coalesce.coach" target="_blank" rel="noopener">
-      <span data-i18n="madeBy">Made by</span>
-      <img src="https://coalesce.coach/favicon.svg" width="16" height="16" alt="" loading="lazy" />
-      <span class="made-by-word">COalesCE</span>
-    </a>
+    <div class="credits">
+      <a id="footerData" class="made-by" href="https://developers.google.com/maps/documentation/isochrones" target="_blank" rel="noopener">
+        <img src="https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" width="16" height="16" alt="" loading="lazy" />
+        <span>
+          <span class="made-by-label" data-i18n="dataByLabel">Data by</span><br/>
+          <span class="made-by-word">Google</span>
+        </span>
+        <svg class="made-by-arrow" viewBox="0 0 20 20" width="11" height="11" fill="none" aria-hidden="true">
+          <path d="M6 14 14 6M8 6h6v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+
+      <a class="made-by" href="https://www.coalesce.coach" target="_blank" rel="noopener">
+        <img src="https://www.coalesce.coach/favicon.svg" width="16" height="16" alt="" loading="lazy" />
+        <span>
+          <span class="made-by-label" data-i18n="madeBy">Made by</span><br/>
+          <span class="made-by-word">COalesCE</span>
+        </span>
+        <svg class="made-by-arrow" viewBox="0 0 20 20" width="11" height="11" fill="none" aria-hidden="true">
+          <path d="M6 14 14 6M8 6h6v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
   </aside>
 
   <div style="position:relative;height:100%">
@@ -109,7 +161,9 @@
   <a class="about-docs" id="aboutDocsLink" href="https://developers.google.com/maps/documentation/isochrones" target="_blank" rel="noopener" data-i18n="aboutDocsLink">Google Isochrones API: official documentation ↗</a>
 </dialog>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js" defer></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+  crossorigin="anonymous"></script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
